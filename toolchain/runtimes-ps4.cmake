@@ -14,7 +14,9 @@ set(CMAKE_RANLIB "${LLVMBIN}/llvm-ranlib.exe")
 set(CMAKE_C_COMPILER_TARGET x86_64-pc-freebsd12-elf)
 set(CMAKE_CXX_COMPILER_TARGET x86_64-pc-freebsd12-elf)
 set(CMAKE_ASM_COMPILER_TARGET x86_64-pc-freebsd12-elf)
-set(_common "-fPIC -funwind-tables -D__PS4__ -DPS4 -D__ORBIS__ -D_BSD_SOURCE=1 -U__FreeBSD__ -isysroot ${SDK}")
+# -nostdlibinc: bare freebsd-elf targets otherwise get the HOST's /usr/include appended after
+# the SDK paths (seen on clang 18 in Linux distributions; harmless on Windows).
+set(_common "-fPIC -funwind-tables -D__PS4__ -DPS4 -D__ORBIS__ -D_BSD_SOURCE=1 -U__FreeBSD__ -nostdlibinc -isysroot ${SDK}")
 set(OVERLAY "C:/Users/alejo/eden-ps4/toolchain/include-overlay")
 set(CMAKE_C_FLAGS_INIT "${_common} -isystem ${OVERLAY} -isystem ${COMPAT}/include -isystem ${SDK}/include -include orbis_prefix.h")
 set(CMAKE_CXX_FLAGS_INIT "${_common} -nostdinc++ -isystem ${OVERLAY} -isystem ${COMPAT}/include -isystem ${SDK}/include -include orbis_prefix.h")

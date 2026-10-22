@@ -29,7 +29,7 @@ SDK_GZ_URL=https://github.com/orbis-ports/orbis-porting-kit/releases/download/or
 OO_GZ_URL=https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain/releases/download/v0.5.4/toolchain-llvm-18.tar.gz
 HBMENU_URL=https://github.com/switchbrew/nx-hbmenu/releases/download/v3.6.1/nx-hbmenu_v3.6.1.zip
 OPENSSL_URL=https://www.openssl.org/source/openssl-3.6.2.tar.gz
-FFMPEG_SHA=c7b5f1537d
+FFMPEG_SHA=c7b5f1537d9c52efa50fd10d106ca015ddde1818
 
 say() { echo -e "\n===== $* =====" >&2; }
 
@@ -154,6 +154,7 @@ PY
         -DLIBCXX_HAS_MUSL_LIBC=ON -DLIBCXX_CXX_ABI=libcxxabi \
         -DLIBCXX_ENABLE_NEW_DELETE_DEFINITIONS=OFF -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
         -DLIBCXX_ENABLE_TIME_ZONE_DATABASE=OFF -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
+        -DLIBCXX_HAS_PTHREAD_API=ON \
         -DLLVM_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_TESTS=OFF -DLIBCXXABI_INCLUDE_TESTS=OFF \
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$REPO/libcxx18"
     cmake --build "$REPO/build-libcxx" -j "$NPROC_IS"
@@ -173,7 +174,7 @@ if [ ! -f "$REPO/prefix/lib/libssl.a" ]; then
     fi
     (
         cd "$REPO/deps/openssl-3.6.2"
-        CFLAGS="$PS4_CFLAGS" CC="$TOOLS/llvm/bin/clang" AR="$TOOLS/llvm/bin/llvm-ar" \
+        CFLAGS="$PS4_CFLAGS -nostdlibinc" CC="$TOOLS/llvm/bin/clang" AR="$TOOLS/llvm/bin/llvm-ar" \
         RANLIB="$TOOLS/llvm/bin/llvm-ranlib" perl Configure linux-x86_64-clang \
             no-shared no-tests no-apps no-docs no-dso no-async no-afalgeng no-engine no-ui-console \
             no-secure-memory no-module --with-rand-seed=devrandom --prefix="$REPO/prefix" \

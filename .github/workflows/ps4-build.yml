@@ -28,6 +28,8 @@ jobs:
           sudo apt-get install -y curl git python3 perl make unzip zip ninja-build cmake \
             glslang-tools file
           sudo apt-get install -y llvm-18 lld-18 || { wget -q -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh; sudo bash /tmp/llvm.sh 18; }
+          # eden needs CMake >= 3.31 (noble's apt cmake is 3.28)
+          sudo pip3 install --break-system-packages -q cmake ninja
 
       # ---- caches: SDK/toolchains, libc++, OpenSSL/FFmpeg prefix, the Eden build tree ----
       - name: Cache SDK + OpenOrbis + hbmenu

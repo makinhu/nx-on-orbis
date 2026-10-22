@@ -32,3 +32,7 @@ set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -femulated-tls")
 # units. Without it the compiler targets baseline x86-64 (SSE2), and races were CPU-bound (test 22).
 set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -march=btver2")
 set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -march=btver2")
+# -nostdlibinc: bare freebsd-elf targets otherwise get the HOST's /usr/include appended after
+# the SDK paths (seen on clang 18 in Linux distributions; harmless on Windows).
+set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -nostdlibinc")
+set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -nostdlibinc")

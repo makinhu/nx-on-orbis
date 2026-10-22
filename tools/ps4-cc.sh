@@ -3,6 +3,7 @@
 # Link probes really link against the SDK's libc/libkernel stubs (never run), entry = main.
 set -euo pipefail
 source /c/Users/alejo/eden-ps4/tools/env-build.sh
+PS4_CFLAGS="$PS4_CFLAGS -nostdlibinc"  # no HOST /usr/include on Linux clang 18 for this bare triple
 args=()
 link=true
 for a in "$@"; do
