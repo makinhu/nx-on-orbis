@@ -67,6 +67,7 @@ seconds** to quit.
 | `astc` | `cpu`, `async`, `gpu` | ASTC texture decoding (async and gpu crashed in tests) |
 | `profile` | `on`, `off` | sampling profiler in `boot.log` |
 | `affinity` | `on`, `off` | pin the emulated CPU cores to CPUs 0-3, the GPU thread to CPU 4 and audio + Vulkan workers to CPUs 5-6 (default on; every pin is logged to `boot.log`) |
+| `resolution` | `1`, `0.75`, `0.5` | internal render scale against handheld's 720p: 0.75 = 540p, 0.5 = 360p (default 1). Lower = fewer pixels and smaller driver framebuffers, which leaves more direct memory |
 | `dyna_state` | `0`-`3` (2) | Vulkan extended dynamic state level |
 | `vertex_input_dynamic` | `on`, `off` | |
 | `bgra`, `rg`, `a2b10`, `swizzle` | see `frontend/main.cpp` | color self-tests and workarounds (diagnostics) |

@@ -252,6 +252,11 @@ void ApplyPs4Settings() {
 /// settings.txt: lines "key=value" ('#' starts a comment). Each recognized line is logged; any
 /// other line is logged as unknown and ignored.
 ///   astc=gpu|cpu|async          ASTC texture decoding (default cpu)
+///   resolution=0.5|0.75|1       internal render scale against handheld's 720p:
+///                               0.5 = 360p, 0.75 = 540p, 1 = 720p (default 1). Lower scales render
+///                               fewer pixels and shrink every framebuffer of the driver, which
+///                               frees direct memory beside the arena - the same budget the
+///                               fastmem view wants. Appearance suffers first at 0.5.
 ///   bgra=auto|on|off            B8G8R8A8 red/blue workaround (default auto: startup self-test)
 ///   a2b10=auto|off              A2B10G10R10 workaround from the startup self-test (default auto)
 ///   rg=auto|on|off              R8G8 red/green workaround (default auto: startup self-test)
@@ -351,6 +356,15 @@ void ApplySettingsFile() {
             v.accelerate_astc.SetValue(value == "gpu"   ? Settings::AstcDecodeMode::Gpu
                                        : value == "cpu" ? Settings::AstcDecodeMode::Cpu
                                                         : Settings::AstcDecodeMode::CpuAsynchronous);
+        } else if (key == "resolution" &&
+                   (value == "0.5" || value == "0.5x" || value == "0.75" || value == "0.75x" ||
+                    value == "1" || value == "1x")) {
+            // The Parser strips spaces; values are 0.5/0.75/1, with or without "x". The index of
+            // the decimal point separates the two scales below handheld's 720p.
+            v.resolution_setup.SetValue(
+                value[0] == '0' ? (value[2] == '5' ? Settings::ResolutionSetup::Res1_2X
+                                                   : Settings::ResolutionSetup::Res3_4X)
+                                : Settings::ResolutionSetup::Res1X);
         } else if (key == "bgra" && (value == "auto" || value == "on" || value == "off")) {
             Vulkan::ps4_bgra_mode = value == "auto" ? 0 : value == "on" ? 1 : 2;
         } else if (key == "cpu_accuracy" &&
