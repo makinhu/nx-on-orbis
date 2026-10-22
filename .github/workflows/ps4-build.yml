@@ -40,11 +40,13 @@ jobs:
             _tools/OpenOrbis/
             _tools/hbmenu/
             testroms/
+          save-always: true
           key: sdk-v1-${{ runner.os }}-20261022
 
       - name: Cache libc++18
         uses: actions/cache@v4
         with:
+          save-always: true
           path: |
             libcxx18/
             deps/llvm-project/
@@ -54,6 +56,7 @@ jobs:
       - name: Cache OpenSSL + FFmpeg (prefix/)
         uses: actions/cache@v4
         with:
+          save-always: true
           path: |
             prefix/
             deps/openssl-3.6.2/
@@ -64,6 +67,7 @@ jobs:
       - name: Cache the Eden build tree
         uses: actions/cache@v4
         with:
+          save-always: true
           path: build-eden/
           key: eden-${{ runner.os }}-${{ hashFiles('patches/eden/**') }}-${{ hashFiles('frontend/**', 'toolchain/eden-ps4.cmake', 'configure-eden.sh', 'scripts/**/*.sh') }}
 

@@ -208,6 +208,30 @@ if [ ! -f "$REPO/prefix/lib/libavcodec.a" ]; then
     )
 else say "ffmpeg cache hit"; fi
 
+# Debug probe: can the eden toolchain + FindOpenSSL see our prefix? (print, never gate)
+say "probe: FindOpenSSL through the PS4 toolchain against $REPO/prefix"
+ls "$REPO/prefix/include/openssl/ssl.h" "$REPO/prefix/lib/libssl.a" "$REPO/prefix/lib/libcrypto.a"
+mkdir -p "$REPO/deps/probe"
+cat > "$REPO/deps/probe/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.31)
+project(probe C)
+message(STATUS "probe CMAKE_FIND_ROOT_PATH = ${CMAKE_FIND_ROOT_PATH}")
+message(STATUS "probe ROOT_MODE_PACKAGE = ${CMAKE_FIND_ROOT_PATH_MODE_PACKAGE}")
+message(STATUS "probe ROOT_MODE_INCLUDE = ${CMAKE_FIND_ROOT_PATH_MODE_INCLUDE}")
+set(OPENSSL_ROOT_DIR "$ENV{PS4_PREFIX}")
+set(OPENSSL_INCLUDE_DIR "$ENV{PS4_PREFIX}/include")
+set(OPENSSL_SSL_LIBRARY "$ENV{PS4_PREFIX}/lib/libssl.a")
+set(OPENSSL_CRYPTO_LIBRARY "$ENV{PS4_PREFIX}/lib/libcrypto.a")
+find_package(OpenSSL 3.0.0 QUIET)
+message(STATUS "probe OpenSSL_FOUND=${OpenSSL_FOUND} VER=${OpenSSL_VERSION} INC=${OPENSSL_INCLUDE_DIR} PCRYPT=${OPENSSL_CRYPTO_LIBRARY} PSSL=${OPENSSL_SSL_LIBRARY}")
+EOF
+cmake -S "$REPO/deps/probe" -B "$REPO/deps/probe-build" -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE="$REPO/toolchain/eden-ps4.cmake" \
+    -DCMAKE_BUILD_TYPE=Release -DPS4_BUILD_PKG=OFF -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+    || say "PROBE CONFIGURE FAILED (tolerated, for diagnosis only)"
+echo "--- probe cache:"
+grep -E "^OPENSSL|^CMAKE_FIND_ROOT_PATH" "$REPO/deps/probe-build/CMakeCache.txt" 2>/dev/null || true
+
 # ----------------------------------------------------------------- 5. Eden
 if [ ! -d "$REPO/deps/eden/src" ]; then
     say "fetching Eden + port patches (scripts/fetch-eden.sh)"
