@@ -1,0 +1,58 @@
+From 94fe98018a600ed2bb3dbfb1a878df1be8086076 Mon Sep 17 00:00:00 2001
+From: opencode <opencode@localhost>
+Date: Thu, 22 Oct 2026 11:04:52 +0000
+Subject: [PATCH] ORBIS: configure the bundled OpenSSL without Linux-only
+ engines
+
+The PS4 'Generic' toolchain has no linux headers, so AFALG (and the
+engine management hooks) cannot compile; pass bare-metal-safe configure
+flags from within openssl-cmake itself (cpmfile option strings get split
+by CMake list parsing, so a source patch is the reliable spot).
+---
+ .../0006-bare-metal-configure-options.patch   | 19 +++++++++++++++++++
+ cpmfile.json                                  |  3 ++-
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+ create mode 100644 .patch/openssl-cmake/0006-bare-metal-configure-options.patch
+
+diff --git a/.patch/openssl-cmake/0006-bare-metal-configure-options.patch b/.patch/openssl-cmake/0006-bare-metal-configure-options.patch
+new file mode 100644
+index 0000000..97ae22a
+--- /dev/null
++++ b/.patch/openssl-cmake/0006-bare-metal-configure-options.patch
+@@ -0,0 +1,19 @@
++diff --git a/cmake/ConfigureOpenSSL.cmake b/cmake/ConfigureOpenSSL.cmake
++index 59aa67e..f0b1b5c 100644
++--- a/cmake/ConfigureOpenSSL.cmake
+++++ b/cmake/ConfigureOpenSSL.cmake
++@@ -92,6 +92,14 @@ function(configure_openssl)
++         ${ARGN}
++     )
++ 
+++    # PS4 (bare-metal "Generic" target): the SDK sysroot ships no linux headers, so
+++    # drop Linux-only engines/AFALG and everything else the console does not need.
+++    if(CMAKE_SYSTEM_NAME STREQUAL "Generic")
+++        list(APPEND CONFIGURE_OPTIONS
+++            no-apps no-docs no-engine no-afalgeng no-async no-dso
+++            no-ui-console no-secure-memory)
+++    endif()
+++
++     message(STATUS "Curruent configure options : ${CONFIGURE_OPTIONS}")
++ 
++     # Find previous configure results
+diff --git a/cpmfile.json b/cpmfile.json
+index 3406195..38a5fd4 100644
+--- a/cpmfile.json
++++ b/cpmfile.json
+@@ -206,7 +206,8 @@
+             "0002-use-ccache.patch",
+             "0003-use-cmake-compiler-flags.patch",
+             "0004-use-shell-wrapper.patch",
+-            "0005-use-toolchain-cc.patch"
++            "0005-use-toolchain-cc.patch",
++            "0006-bare-metal-configure-options.patch"
+         ],
+         "repo": "jimmy-park/openssl-cmake",
+         "version": "3.6.2"
+-- 
+2.39.5
+
