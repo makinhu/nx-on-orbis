@@ -12,8 +12,13 @@ cmake -S $R/deps/eden -B $R/build-eden -G Ninja \
  -Dzstd_FORCE_BUNDLED=ON -DBoost_FORCE_BUNDLED=ON -Dfmt_FORCE_BUNDLED=ON -DDYNARMIC_ENABLE_NO_EXECUTE_SUPPORT=OFF \
  -DYUZU_USE_EXTERNAL_FFMPEG=OFF -DYUZU_DOWNLOAD_TIME_ZONE_DATA=ON \
  -DYUZU_USE_BUNDLED_OPENSSL=OFF -DOpenSSL_FORCE_BUNDLED=ON \
-
  -DOPENSSL_INCLUDE_DIR=$PS4_PREFIX/include -DOPENSSL_SSL_LIBRARY=$PS4_PREFIX/lib/libssl.a \
  -DOPENSSL_CRYPTO_LIBRARY=$PS4_PREFIX/lib/libcrypto.a \
+ -DHTTPLIB_USE_ZLIB_IF_AVAILABLE=OFF -DHTTPLIB_USE_BROTLI_IF_AVAILABLE=OFF \
+ -DHTTPLIB_USE_ZSTD_IF_AVAILABLE=OFF \
  -U "FFmpeg_*" -DFFMPEG_DIR=$PS4_PREFIX \
+ -DFFmpeg_INCLUDE_avcodec=$PS4_PREFIX/include -DFFmpeg_LIBRARY_avcodec=$PS4_PREFIX/lib/libavcodec.a \
+ -DFFmpeg_INCLUDE_avfilter=$PS4_PREFIX/include -DFFmpeg_LIBRARY_avfilter=$PS4_PREFIX/lib/libavfilter.a \
+ -DFFmpeg_INCLUDE_avutil=$PS4_PREFIX/include -DFFmpeg_LIBRARY_avutil=$PS4_PREFIX/lib/libavutil.a \
+ -DFFmpeg_INCLUDE_swscale=$PS4_PREFIX/include -DFFmpeg_LIBRARY_swscale=$PS4_PREFIX/lib/libswscale.a \
  -DCMAKE_PROJECT_yuzu_INCLUDE=C:/Users/alejo/eden-ps4/frontend/inject.cmake "$@"
