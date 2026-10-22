@@ -36,3 +36,9 @@ set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -march=btver2")
 # the SDK paths (seen on clang 18 in Linux distributions; harmless on Windows).
 set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -nostdlibinc")
 set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -nostdlibinc")
+# The freebsd-elf triple builtin-defines __FreeBSD__ (12) but the SDK's musl in6_addr carries
+# no __u6_addr member; openssl's bss_dgram.c dies on it under the FreeBSD macro branch. The
+# shell flow (env-build.sh) strips it with -U__FreeBSD__, so do the same here for CMake-driven
+# builds (eden's bundled openssl etc).
+set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -U__FreeBSD__")
+set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -U__FreeBSD__")
