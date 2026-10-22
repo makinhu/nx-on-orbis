@@ -5,7 +5,10 @@ add_executable(eden-ps4 "${_fe}/main.cpp" "${_fe}/ps4_platform.cpp" "${_fe}/ps4_
     "${_fe}/../tests/flat_map_check.cpp"
     "${_fe}/libc_wide_fixes.cpp"
     # compiler-rt 18.1.8 emulated-TLS runtime (the whole build uses -femulated-tls)
-    "${_fe}/emutls/emutls.c")
+    "${_fe}/emutls/emutls.c"
+    # getentropy(): OpenSSL 3 takes its address with a weak extern that create-fself refuses
+    # to map to a system module; this reads /dev/urandom like std::random_device already does.
+    "${_fe}/compat_getentropy.c")
 target_include_directories(eden-ps4 PRIVATE "${PROJECT_SOURCE_DIR}/src" "${_fe}")
 target_link_libraries(eden-ps4 PRIVATE common core audio_core video_core input_common hid_core
     frontend_common Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
