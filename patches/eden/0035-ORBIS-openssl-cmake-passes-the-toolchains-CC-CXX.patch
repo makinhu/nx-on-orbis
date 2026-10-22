@@ -1,0 +1,53 @@
+From f7b541279ff0e8539b22283f277800a07c7b77cb Mon Sep 17 00:00:00 2001
+From: opencode <opencode@localhost>
+Date: Thu, 22 Oct 2026 10:23:55 +0000
+Subject: [PATCH] ORBIS: openssl-cmake passes the toolchain's CC/CXX to OpenSSL
+ Configure
+
+Eden's 0003 patch injects CFLAGS/CXXFLAGS only, and env-build.sh's PS4
+CFLAGS (-femulated-tls, -nostdlibinc, PS4 -isystem paths) are meaningless
+to the host gcc OpenSSL Configure picks when CC is unset. Passing the
+cross toolchain's clang through the same -E env shim keeps the bundled
+OpenSSL build on the PS4 compiler.
+---
+ .patch/openssl-cmake/0005-use-toolchain-cc.patch | 13 +++++++++++++
+ cpmfile.json                                     |  3 ++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+ create mode 100644 .patch/openssl-cmake/0005-use-toolchain-cc.patch
+
+diff --git a/.patch/openssl-cmake/0005-use-toolchain-cc.patch b/.patch/openssl-cmake/0005-use-toolchain-cc.patch
+new file mode 100644
+index 0000000..7d7ba36
+--- /dev/null
++++ b/.patch/openssl-cmake/0005-use-toolchain-cc.patch
+@@ -0,0 +1,13 @@
++diff --git a/cmake/ConfigureOpenSSL.cmake b/cmake/ConfigureOpenSSL.cmake
++index 3012e05..59aa67e 100644
++--- a/cmake/ConfigureOpenSSL.cmake
+++++ b/cmake/ConfigureOpenSSL.cmake
++@@ -136,6 +136,8 @@ function(configure_openssl)
++ 
++     execute_process(
++         COMMAND ${CMAKE_COMMAND} -E env
+++            "CC=${CMAKE_C_COMPILER}"
+++            "CXX=${CMAKE_CXX_COMPILER}"
++             "CFLAGS=${CMAKE_C_FLAGS}"
++             "CXXFLAGS=${CMAKE_CXX_FLAGS}"
++             ${CONFIGURE_COMMAND}
+diff --git a/cpmfile.json b/cpmfile.json
+index af773e0..3406195 100644
+--- a/cpmfile.json
++++ b/cpmfile.json
+@@ -205,7 +205,8 @@
+             "0001-cpmutil-compat.patch",
+             "0002-use-ccache.patch",
+             "0003-use-cmake-compiler-flags.patch",
+-            "0004-use-shell-wrapper.patch"
++            "0004-use-shell-wrapper.patch",
++            "0005-use-toolchain-cc.patch"
+         ],
+         "repo": "jimmy-park/openssl-cmake",
+         "version": "3.6.2"
+-- 
+2.39.5
+
