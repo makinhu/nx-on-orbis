@@ -38,6 +38,10 @@ int32_t sceKernelAvailableDirectMemorySize(off_t start, off_t end, size_t align,
                                           size_t* size);
 size_t sceKernelGetDirectMemorySize(void);
 int32_t sceKernelGetDirectMemoryType(off_t start, int32_t* type, off_t* out_start, off_t* out_end);
+// libkernel exports affinity control for every process thread (bit i of the mask = CPU i); newer
+// SDK headers still declare it only under guards, so declare it here (pthread_t is ScePthread).
+// Weak markup: when the SDK does not export it, PinThread does nothing and the build still links.
+__attribute__((weak)) int scePthreadSetaffinity(pthread_t thread, uint32_t mask);
 int32_t sceUserServiceInitialize(void* params);
 int32_t sceUserServiceGetInitialUser(int32_t* user);
 int32_t sceSystemServiceHideSplashScreen(void);
@@ -473,6 +477,69 @@ void Log(const char* fmt, ...) {
     va_end(ap);
 }
 
+// ---- core affinity --------------------------------------------------------------------------
+// The console gives the process seven CPUs (bit i of the mask = CPU i). Without an arrangement,
+// the scheduler may land two frame-critical threads on one Jaguar core: two-wide, in-order, so
+// that steals frames. From the profile in docs/STATUS.md (v0.1.0): emulated CPU core 0 is the
+// bottleneck (76-84% busy inside JIT code), core 1-2 at 50/40%, core 3 idle, the GPU thread ~30%
+// and the Vulkan worker 10-14%. The layout: the four emulated cores own CPUs 0-3 outright, the
+// GPU thread CPU 4, audio and the Vulkan workers CPUs 5-6. Everything else (menu, watchdog,
+// profiler, host-timing) stays free to move, so nothing pinches the console's own CPUs.
+namespace {
+std::atomic<bool> g_affinity{true};
+
+unsigned ThreadCpuMask(const char* name) {
+    if (std::strncmp(name, "CPUCore_", 8) == 0 && name[8] >= '0' && name[8] <= '3' &&
+        name[9] == '\0') {
+        return 1u << (name[8] - '0');
+    }
+    if (std::strcmp(name, "GPU") == 0) {
+        return 0x10;
+    }
+    if (std::strcmp(name, "VulkanWorker") == 0 || std::strcmp(name, "VulkanPresent") == 0 ||
+        std::strcmp(name, "AudioOutPS4") == 0 || std::strcmp(name, "AudioManager") == 0 ||
+        std::strncmp(name, "DSP_", 4) == 0) {
+        return 0x60;
+    }
+    return 0;
+}
+} // Anonymous namespace
+
+void SetAffinity(bool enabled) {
+    g_affinity.store(enabled);
+    Log("affinity: %s", enabled ? "on" : "off");
+}
+
+/// Pins one Eden thread by name. Called from the naming hook, i.e. from the thread itself, right
+/// after it names itself and before it does any work.
+void PinThread(const char* name) {
+    if (&scePthreadSetaffinity == nullptr || !g_affinity.load(std::memory_order_relaxed)) {
+        return;
+    }
+    const unsigned mask = ThreadCpuMask(name);
+    if (mask == 0) {
+        return;
+    }
+    const pthread_t self = pthread_self();
+    const int rc = scePthreadSetaffinity(self, mask);
+    if (rc != 0) {
+        Log("affinity: %s FAILED (0x%08x), left free", name, static_cast<unsigned>(rc));
+        return;
+    }
+    char bits[16] = {};
+    int n = 0;
+    for (unsigned cpu = 0; cpu < 7; ++cpu) {
+        if (mask & (1u << cpu)) {
+            bits[n++] = static_cast<char>('0' + cpu);
+            bits[n++] = ' ';
+        }
+    }
+    if (n > 0) {
+        bits[n - 1] = '\0';
+    }
+    Log("affinity: %s -> CPU %s", name, bits);
+}
+
 void RegisterThread(const char* name) {
     std::lock_guard lock{g_named_mutex};
     const int n = g_named_count.load();
@@ -760,6 +827,7 @@ extern "C" void EdenPs4OnRenderPass(std::uint64_t renderpass, std::uint64_t fram
 extern "C" void EdenPs4OnThreadNamed(pthread_t thread, const char* name) {
     (void)thread; // always the calling thread
     Ps4::RegisterThread(name);
+    Ps4::PinThread(name);
 }
 
 /// The registered name of a thread (texture-cache history), or "?".

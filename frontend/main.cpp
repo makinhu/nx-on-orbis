@@ -261,6 +261,8 @@ void ApplyPs4Settings() {
 ///   gpu_accuracy=low|high       (default low)
 ///   reactive_flushing=on|off    (default off)
 ///   profile=on|off              sampling profiler in boot.log (default on)
+///   affinity=on|off             pin the emulated CPU cores, GPU thread and Vulkan workers to
+///                               fixed CPUs (default on)
 ///   cpu_accuracy=unsafe|auto|accurate (default unsafe)
 ///   fastmem=on|off              (default on; needs cpu_accuracy=unsafe)
 ///   async_shaders=on|off        (default on)
@@ -360,6 +362,8 @@ void ApplySettingsFile() {
             v.cpuopt_unsafe_host_mmu.SetValue(value == "on");
         } else if (key == "profile" && (value == "on" || value == "off")) {
             Ps4::SetProfiling(value == "on");
+        } else if (key == "affinity" && (value == "on" || value == "off")) {
+            Ps4::SetAffinity(value == "on");
         } else if (key == "reactive_flushing" && (value == "on" || value == "off")) {
             v.use_reactive_flushing.SetValue(value == "on");
         } else if (key == "a2b10" && (value == "auto" || value == "off")) {
@@ -673,6 +677,13 @@ int main() {
                          static_cast<unsigned long>(view.redirect_sample[3]),
                          static_cast<unsigned long>(view.redirect_reason[4]),
                          static_cast<unsigned long>(view.redirect_sample[4]));
+                for (int shape = 0; shape < 16; ++shape) {
+                    if (view.unmapped_shapes[shape] != 0) {
+                        Ps4::Log("   unmapped shape 0x%x/0xf: %lu faults, last guest 0x%lx",
+                                 shape, static_cast<unsigned long>(view.unmapped_shapes[shape]),
+                                 static_cast<unsigned long>(view.unmapped_shape_samples[shape]));
+                    }
+                }
             }
             CheckHeapEnvironment();
             if (++status_count % 3 == 1) {

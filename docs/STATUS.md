@@ -179,3 +179,27 @@ through Eden's swapchain; forcing the other surface format.
    fastmem on.
 4. Most promising for colors: the presentation path (swapchain format vs the video-out buffer
    format), see "Colors" above.
+
+## Work prepared after the project closed (2026-10-22)
+
+Patches `0032-0033` in `patches/eden/` and frontend changes, not yet run on the console:
+
+- **Stream buffer 256 → 128 MiB** (`0032`). The stream buffer is a GARLIC allocation outside the
+  arena, so it costs direct memory every session, and MK8D races had ~100 MiB free while the
+  fastmem branch needs ~128 MiB more C heap (tests 27 and 29). This is the first "ideas not tried"
+  item of the memory budget section above.
+- **Redirect-storm diagnostics** (`0033`). The "unmapped" redirects are now counted by shape: a
+  nibble of which of the 16 KiB page's four 4 KiB guest pages were aliasable, with the last guest
+  offset of each shape, logged every 10 s in `boot.log`. The first fastmem session now separates
+  mapping churn (shape `0x0`/`0x1`) from hole-inside-a-block (shape `0x7`) from mixed backing
+  (shape `0xf`), which decides the fix (persistent per-subpage entries? churn tracking? an hle
+  device-region list?).
+- **Core affinity** (frontend, default on, `settings.txt affinity=off` to disable). From the
+  profile: emulated cores 0-3 pin to CPUs 0-3, the GPU thread to CPU 4, audio and the Vulkan
+  workers to CPUs 5-6; everything else stays free. Without this the scheduler can land two
+  frame-critical threads on one Jaguar core (two-wide, in-order: every clashing pair takes frames
+  away). Every pin (or failure) is logged to `boot.log`.
+- Expected order of magnitude: stream buffer gives the memory fastmem wanted; affinity protects
+  the ~13-16 fps races from scheduler collisions (previously unmeasured); diagnostics cost nothing
+  and choose the next storm fix. Nothing here substitutes the ceiling analysis: the per-core
+  Jaguar + JIT calculus in "Projected maximum performance" above stands.

@@ -1,0 +1,43 @@
+From 3b522ded5b6ff1323c267287ed784036a64522a0 Mon Sep 17 00:00:00 2001
+From: opencode <opencode@localhost>
+Date: Thu, 22 Oct 2026 03:29:27 +0000
+Subject: [PATCH] ORBIS: stream buffer 128 MiB (GARLIC costs direct memory
+ beside the arena)
+
+The stream buffer is a device-local allocation the driver places in GARLIC
+memory outside the arena, so its full 256 MiB cost direct memory on top of
+the 1280 MiB arena. MK8D races had ~100 MiB free, and the fastmem branch
+needs ~128 MiB more C heap before a race loads (tests 27 and 29). With the
+driver now submitting every 256 draws, 128 MiB moves three to four times
+per frame. Ideas not tried in docs/STATUS.md (v0.1.0).
+
+Co-Authored-By: opencode
+---
+ .../renderer_vulkan/vk_staging_buffer_pool.cpp        | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/video_core/renderer_vulkan/vk_staging_buffer_pool.cpp b/src/video_core/renderer_vulkan/vk_staging_buffer_pool.cpp
+index 7b6571d..ff22b3e 100644
+--- a/src/video_core/renderer_vulkan/vk_staging_buffer_pool.cpp
++++ b/src/video_core/renderer_vulkan/vk_staging_buffer_pool.cpp
+@@ -33,7 +33,16 @@ constexpr VkDeviceSize MAX_ALIGNMENT = 256;
+ // Windows ones however, can intake bigger buffers and generally do not OOM.
+ // - GTX 960 on Windows will not OOM with 256mib
+ // - GT 1030 on ^NIX will OOM with 256mib
+-#if defined(__FreeBSD__)
++#if defined(__ORBIS__)
++// PS4: the stream buffer is a device-local allocation the driver places in GARLIC memory, outside
++// the arena, so its full size costs direct memory on top of the 1280 MiB arena. MK8D races ran
++// ~100 MiB free; every MiB here is gone by race load, and the experimental fastmem branch needs
++// ~128 MiB more C heap before a race even loads. Half the stream buffer took MK8D only to its
++// menu before; with the driver now submitting every 256 draws (test 13), 128 MiB moves per frame
++// three to four times over. Frees ~128 MiB for fastmem's bars to fit. (See docs/STATUS.md,
++// "Ideas not tried".)
++constexpr VkDeviceSize MAX_STREAM_BUFFER_SIZE = 128_MiB;
++#elif defined(__FreeBSD__)
+ constexpr VkDeviceSize MAX_STREAM_BUFFER_SIZE = 128_MiB;
+ #else
+ constexpr VkDeviceSize MAX_STREAM_BUFFER_SIZE = 256_MiB;
+-- 
+2.39.5
+

@@ -33,6 +33,9 @@ void SetPhase(const char* phase);
 void ArmHangWatch(unsigned seconds);
 /// Records the calling thread under `name` for hang stack dumps.
 void RegisterThread(const char* name);
+/// Pins Eden's frame-critical threads to fixed CPUs (CPUCore_*, GPU, Vulkan worker, audio).
+/// Default on; settings.txt `affinity=off` turns it off.
+void SetAffinity(bool enabled);
 /// Called by the presentation path for every frame shown.
 void NoteFrame();
 

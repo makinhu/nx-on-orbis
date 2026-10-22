@@ -1,0 +1,84 @@
+From d069e3763ead2400aa595fff5f9093ac25760046 Mon Sep 17 00:00:00 2001
+From: opencode <opencode@localhost>
+Date: Thu, 22 Oct 2026 03:30:19 +0000
+Subject: [PATCH] ORBIS: diagnose the fastmem redirect storm by unmapped shape
+
+~370,000 slow-path redirects per session, almost all 'unmapped'. What we
+cannot tell apart yet: a page where no ViewMap ever landed (mapping churn?
+a region the view never saw?) and a page with a hole inside an otherwise
+mapped block (guard page, IPC buffer), and a page whose four sub-pages
+mix several backing pages (device mapping). Count each shape: a nibble,
+bit sub = that 4 KiB guest page had an aliasable mapping, plus the last
+guest offset of each shape. One line per shape every 10 s in boot.log:
+the next session on the console decides what the fix is.
+
+Co-Authored-By: opencode
+---
+ src/common/orbis_lazy_memory.cpp | 16 +++++++++++++++-
+ src/common/orbis_lazy_memory.h   |  5 +++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/common/orbis_lazy_memory.cpp b/src/common/orbis_lazy_memory.cpp
+index 3d6f214..9d924e4 100644
+--- a/src/common/orbis_lazy_memory.cpp
++++ b/src/common/orbis_lazy_memory.cpp
+@@ -152,6 +152,13 @@ std::atomic<std::size_t> g_view_conflicts{0};
+ // mapped (or maps other backing), 2 not readable, 3 write to a page mapped read-only, 4 other.
+ std::atomic<std::size_t> g_redirect_reason[5]{};
+ std::atomic<std::uintptr_t> g_redirect_sample[5]{};
++// Shape of the pages that went to the "unmapped" path (reason 1): a nibble, bit sub = its 4 KiB
++// guest page had a mapping that could alias. 0/4 and 1/4 = the mapping never landed (churn? the
++// region never got ViewMap?); 3/4 = a hole inside an otherwise-mapped block (guard page, IPC
++// buffer); 15 = all four had mappings but not one shared backing page (device mapping). With the
++// counts the next console log separates them; the sample is the last guest offset of each shape.
++std::atomic<std::size_t> g_redirect_shape[16]{};
++std::atomic<std::size_t> g_redirect_shape_sample[16]{};
+ 
+ std::uint64_t* ViewEntryLocked(std::size_t page, bool create) {
+     const std::size_t span = page / PagesPerSpan;
+@@ -315,6 +322,9 @@ void FaultHandler(int signal, void* ucontext) {
+             const std::uint64_t* e = ViewEntryLocked((addr - g_view_base) / ViewPage, false);
+             if (e == nullptr || ((*e >> ValidShift) & 0xF) != 0xF) {
+                 reason = 1;
++                const unsigned shape = e == nullptr ? 0 : unsigned((*e >> ValidShift) & 0xF);
++                g_redirect_shape[shape].fetch_add(1, std::memory_order_relaxed);
++                g_redirect_shape_sample[shape].store(sample, std::memory_order_relaxed);
+             } else if (((*e >> ReadShift) & 0xF) != 0xF) {
+                 reason = 2;
+             } else if (((*e >> HostShift) & 3) == 1) {
+@@ -745,11 +755,15 @@ unsigned ViewAddressBits() {
+ 
+ ViewStats GetViewStats() {
+     ViewStats stats{g_view_mapped.load(), g_view_touches.load(), g_jit_redirects.load(),
+-                    g_view_conflicts.load(), g_view_size, g_view_asked, g_view_error, {}, {}};
++                    g_view_conflicts.load(), g_view_size, g_view_asked, g_view_error, {}, {}, {}, {}};
+     for (int i = 0; i < 5; ++i) {
+         stats.redirect_reason[i] = g_redirect_reason[i].load();
+         stats.redirect_sample[i] = g_redirect_sample[i].load();
+     }
++    for (int i = 0; i < 16; ++i) {
++        stats.unmapped_shapes[i] = g_redirect_shape[i].load();
++        stats.unmapped_shape_samples[i] = g_redirect_shape_sample[i].load();
++    }
+     return stats;
+ }
+ 
+diff --git a/src/common/orbis_lazy_memory.h b/src/common/orbis_lazy_memory.h
+index d4a7ed8..cb3830a 100644
+--- a/src/common/orbis_lazy_memory.h
++++ b/src/common/orbis_lazy_memory.h
+@@ -100,6 +100,11 @@ struct ViewStats {
+     // to a read-only page, other; and the last guest address (view offset) seen for each.
+     std::size_t redirect_reason[5];
+     std::uintptr_t redirect_sample[5];
++    // Shape of the pages behind "unmapped": unmapped_shapes[shape] counts, bit sub of shape =
++    // the view fault's 16 KiB page had an aliasable mapping for that 4 KiB guest page; and the
++    // last guest offset of each shape.
++    std::size_t unmapped_shapes[16];
++    std::uintptr_t unmapped_shape_samples[16];
+ };
+ ViewStats GetViewStats();
+ 
+-- 
+2.39.5
+
