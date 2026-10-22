@@ -1,0 +1,37 @@
+From d16333707af07930eab0a6354c178bf186ebbcd5 Mon Sep 17 00:00:00 2001
+From: opencode <opencode@localhost>
+Date: Thu, 22 Oct 2026 08:20:03 +0000
+Subject: [PATCH] ORBIS: FindFFmpeg never searches host default include paths
+
+On Linux hosts find_path() fell back to the host's /usr/include, so the
+FFmpeg targets carried -isystem /usr/include ahead of the SDK paths: that
+flipped <stdint.h> to glibc's and broke orbis_prefix.h under the SDK's musl
+sysroot (bits/libc-header-start.h not found). With NO_DEFAULT_PATH the
+lookup is constrained to the paths that were already listed (the FFmpeg
+dir passes everything the port needs).
+
+Co-Authored-By: opencode (Claude, sandbox do usuario)
+---
+ CMakeModules/find/FindFFmpeg.cmake | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CMakeModules/find/FindFFmpeg.cmake b/CMakeModules/find/FindFFmpeg.cmake
+index 11dd08a..d679b9b 100644
+--- a/CMakeModules/find/FindFFmpeg.cmake
++++ b/CMakeModules/find/FindFFmpeg.cmake
+@@ -93,10 +93,12 @@ function(find_ffmpeg LIBNAME)
+ 
+   find_path(FFmpeg_INCLUDE_${LIBNAME} lib${LIBNAME}/${LIBNAME}.h
+     HINTS ${INCLUDE_PATHS}
++    NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH
+   )
+ 
+   find_library(FFmpeg_LIBRARY_${LIBNAME} ${LIBNAME}
+     HINTS ${LIB_PATHS}
++    NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH
+   )
+ 
+   if(NOT FFMPEG_DIR AND (NOT FFmpeg_LIBRARY_${LIBNAME} OR NOT FFmpeg_INCLUDE_${LIBNAME}))
+-- 
+2.39.5
+
