@@ -8,6 +8,8 @@ tools/usr/
 tools/msys-perl/
 tools/bin/
 tools/*.zst
+_tools/
+testroms/
 build-*/
 stage-*/
 out/

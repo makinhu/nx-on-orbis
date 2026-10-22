@@ -1,0 +1,90 @@
+# Builds the PS4 .pkg on GitHub's own runners (no local PC/Windows needed).
+#
+#   - Manual: Actions tab -> ps4-build -> Run workflow (any branch).
+#   - Automatic: every push to experimental-fastmem/main rebuilds and attaches artifacts.
+#
+# Artifacts on success: the .pkg (install via FTP to /data/GAME/EDPS00001/? see docs/INSTALL.md)
+# and the matching ELF (crash-report symbolization; docs/BUILDING.md section 6).
+# Artifacts on failure: cmake caches + ninja logs so the failing step can be debugged.
+name: ps4-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [experimental-fastmem, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    env:
+      MAXJOBS: '4'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl git python3 perl make unzip zip ninja-build cmake \
+            glslang-tools file
+          sudo apt-get install -y llvm-18 lld-18 || { wget -q -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh; sudo bash /tmp/llvm.sh 18; }
+
+      # ---- caches: SDK/toolchains, libc++, OpenSSL/FFmpeg prefix, the Eden build tree ----
+      - name: Cache SDK + OpenOrbis + hbmenu
+        uses: actions/cache@v4
+        with:
+          path: |
+            sdk-dl/
+            _tools/OpenOrbis/
+            _tools/hbmenu/
+            testroms/
+          key: sdk-v1-${{ runner.os }}-20261022
+
+      - name: Cache libc++18
+        uses: actions/cache@v4
+        with:
+          path: |
+            libcxx18/
+            deps/llvm-project/
+            build-libcxx/
+          key: libcxx18-${{ runner.os }}-${{ hashFiles('toolchain/runtimes-ps4.cmake') }}-${{ hashFiles('toolchain/include-overlay/**') }}-20261022
+
+      - name: Cache OpenSSL + FFmpeg (prefix/)
+        uses: actions/cache@v4
+        with:
+          path: |
+            prefix/
+            deps/openssl-3.6.2/
+            deps/ffmpeg/
+            deps/build-ffmpeg/
+          key: cdeps-${{ runner.os }}-v1-${{ hashFiles('scripts/linux-build.sh', 'tools/ps4-cc.sh', 'tools/env-build.sh') }}
+
+      - name: Cache the Eden build tree
+        uses: actions/cache@v4
+        with:
+          path: build-eden/
+          key: eden-${{ runner.os }}-${{ hashFiles('patches/eden/**') }}-${{ hashFiles('frontend/**', 'toolchain/eden-ps4.cmake', 'configure-eden.sh', 'scripts/**/*.sh') }}
+
+      - name: Build (scripts/linux-build.sh)
+        run: bash scripts/linux-build.sh
+
+      - name: Upload .pkg + ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: eden-ps4-pkg
+          path: |
+            out-eden/*.pkg
+            elf/*.elf
+          retention-days: 30
+
+      - name: Debug logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-debug
+          path: |
+            build-eden/CMakeCache.txt
+            build-eden/.ninja_log
+            build-libcxx/CMakeCache.txt
+          if-no-files-found: ignore
+          retention-days: 30
