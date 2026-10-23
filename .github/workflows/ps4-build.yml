@@ -32,6 +32,11 @@ jobs:
           sudo pip3 install --break-system-packages -q cmake ninja
           # probe/make-icon.py draws sce_sys/icon0.png (PIL)
           sudo pip3 install --break-system-packages -q pillow
+          # PkgTool.Core is a .NET tool; noble's OpenSSL 3 is too new for its runtime probe
+          # ("No usable version of libssl was found" on PkgTool.Core pkg_build)
+          sudo apt-get install -y -q wget >/dev/null 2>&1 || true
+          curl -fsSL -o /tmp/libssl1.1.deb http://security.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
+          sudo dpkg -i /tmp/libssl1.1.deb
 
       # ---- caches: SDK/toolchains, libc++, OpenSSL/FFmpeg prefix, the Eden build tree ----
       - name: Cache SDK + OpenOrbis + hbmenu
